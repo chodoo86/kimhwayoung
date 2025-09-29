@@ -1,6 +1,6 @@
-### YouTube SoV Collector (배달앱: 배달의민족/요기요/쿠팡이츠)
+### YouTube SoV Collector (영어 학습 앱: 듀오링고 / 스픽)
 
-This script collects YouTube videos and top-level comments mentioning the three delivery app brands, then exports:
+This script collects YouTube videos and top-level comments mentioning English learning app brands (Duolingo, Speak), then exports:
 - videos CSV
 - comments CSV
 - monthly Share of Voice (SoV) CSV (based on videos/views/likes/comments)
@@ -31,5 +31,5 @@ Outputs (default `data/`):
 
 #### Notes
 - Only top-level comments are collected (per-video cap configurable).
-- Brands searched: 배달의민족, 요기요, 쿠팡이츠. Modify `BRANDS` in `scripts/youtube_sov_collect.py`.
+- Brands searched: Duolingo, Speak (and Korean variants). Modify `BRAND_KEYWORDS` in `scripts/youtube_sov_collect.py`.
 - For SoV we compute monthly shares for videos/views/likes/comments; Power BI can ingest these directly.

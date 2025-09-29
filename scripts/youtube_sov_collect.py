@@ -17,13 +17,17 @@ from tqdm import tqdm
 
 load_dotenv()
 
-API_KEY = os.getenv("AIzaSyA9TK7gQ3YBawc_4tejieleXjziLBH7v50", "")
+API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 if not API_KEY:
     raise RuntimeError("Missing YOUTUBE_API_KEY in environment. Create .env with YOUTUBE_API_KEY=...")
 
-# Brands and base query terms
-BRANDS = ["배달의민족", "요기요", "쿠팡이츠"]
-# You can expand with additional terms per brand if needed
+# Brand keywords and canonical mapping
+# Target brands: Duolingo, Speak (English learning apps)
+# Feel free to extend the keywords lists to include more variants/typos
+BRAND_KEYWORDS = {
+    "Duolingo": ["듀오링고", "Duolingo"],
+    "Speak": ["스픽", "speak", "Speak"],
+}
 
 # Search window. Examples: "2024-01-01T00:00:00Z" to now
 PUBLISHED_AFTER = os.getenv("PUBLISHED_AFTER", "2024-01-01T00:00:00Z")
@@ -170,12 +174,13 @@ def fetch_top_level_comments(youtube, video_id: str, max_comments: int) -> List[
 # Processing
 # -----------------------------
 
-def detect_brand(text: str, brands: List[str]) -> Optional[str]:
+def detect_brand(text: str, brand_keywords: Dict[str, List[str]]) -> Optional[str]:
     if not text:
         return None
-    for b in brands:
-        if b in text:
-            return b
+    for canonical, keywords in brand_keywords.items():
+        for kw in keywords:
+            if kw and kw in text:
+                return canonical
     return None
 
 
@@ -214,11 +219,16 @@ def main():
     all_video_rows: List[Dict] = []
     all_comment_rows: List[Dict] = []
 
-    for brand in BRANDS:
-        query = brand
-        print(f"Searching videos for brand: {brand}")
-        items = search_videos(youtube, query, PUBLISHED_AFTER, PUBLISHED_BEFORE, MAX_SEARCH_PAGES_PER_BRAND)
-        video_ids = [it["id"]["videoId"] for it in items if it.get("id", {}).get("videoId")]
+    for canonical_brand, keywords in BRAND_KEYWORDS.items():
+        print(f"Searching videos for brand: {canonical_brand}")
+        found_video_ids_set = set()
+        for query in keywords:
+            items = search_videos(youtube, query, PUBLISHED_AFTER, PUBLISHED_BEFORE, MAX_SEARCH_PAGES_PER_BRAND)
+            for it in items:
+                vid = it.get("id", {}).get("videoId")
+                if vid:
+                    found_video_ids_set.add(vid)
+        video_ids = list(found_video_ids_set)
 
         # video details
         details = get_videos_details(youtube, video_ids)
@@ -230,8 +240,8 @@ def main():
             published_at = snippet.get("publishedAt")
             title = snippet.get("title", "")
             description = snippet.get("description", "")
-            detected_brand = detect_brand(f"{title} {description}", BRANDS)
-            row_brand = detected_brand if detected_brand else brand
+            detected_brand = detect_brand(f"{title} {description}", BRAND_KEYWORDS)
+            row_brand = detected_brand if detected_brand else canonical_brand
 
             all_video_rows.append({
                 "brand": row_brand,
@@ -247,8 +257,8 @@ def main():
             })
 
         # comments per video (top-level)
-        print(f"Fetching comments for {len(video_ids)} videos of {brand} (capped per video: {MAX_COMMENTS_PER_VIDEO})")
-        for vid in tqdm(video_ids, desc=f"Comments {brand}"):
+        print(f"Fetching comments for {len(video_ids)} videos of {canonical_brand} (capped per video: {MAX_COMMENTS_PER_VIDEO})")
+        for vid in tqdm(video_ids, desc=f"Comments {canonical_brand}"):
             comments = fetch_top_level_comments(youtube, vid, MAX_COMMENTS_PER_VIDEO)
             all_comment_rows.extend(comments)
 
